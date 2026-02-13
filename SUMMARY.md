@@ -133,7 +133,7 @@ remote-default --install
 ```ini
 remote_host=user@hostname
 ssh_key=/path/to/key
-remote_browser=xdg-open
+remote_browser=remlib
 ```
 
 **Configuration Methods**:

@@ -10,8 +10,8 @@ remote_host=user@example.com
 ssh_key=/home/user/.ssh/id_rsa
 
 # Browser command to execute on remote host
-# Options: xdg-open (default), firefox, google-chrome, chromium-browser
-remote_browser=xdg-open
+# Options: remlib (recommended), xdg-open (fallback), firefox, google-chrome
+remote_browser=remlib
 
 # Logging Configuration
 # Enable or disable logging (true/false, yes/no, 1/0, on/off)

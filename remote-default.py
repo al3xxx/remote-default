@@ -87,7 +87,7 @@ class RemoteDefaultBrowser:
         c = {
             'host': None,
             'key': None,
-            'browser': 'xdg-open',
+            'browser': 'remlib',
             'log_on': False,
             'lvl': 'INFO',
             'log_f': ''
