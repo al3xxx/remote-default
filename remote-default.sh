@@ -164,17 +164,17 @@ help() {
 Remote Default Browser
 Usage: $0 [URL] [OPTS]
 Opts:
-  -c, --configure     Config
-  -i, --install       Install
-  -u, --uninstall     Uninstall
-  -s, --show-log      Show log
-  -r, --remote-host   Host
-  -k, --ssh-key       Key
-  -b, --remote-browser Browser
-  -E, --enable-logging On
-  -D, --disable-logging Off
-  -l, --log-level     Lvl
-  -f, --log-file      File
+  -c, --configure     Configure remote host settings (interactive if no host provided)
+  -i, --install       Install as the system default browser
+  -u, --uninstall     Uninstall and remove desktop integration
+  -s, --show-log      Display log file location and recent entries
+  -r, --remote-host   Set remote host (e.g., user@hostname)
+  -k, --ssh-key       Set path to SSH private key
+  -b, --remote-browser Set browser command on remote host (default: remlib)
+  -E, --enable-logging Enable persistent logging
+  -D, --disable-logging Disable persistent logging
+  -l, --log-level     Set logging verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  -f, --log-file      Set path to log file
 EOF
 }
 
