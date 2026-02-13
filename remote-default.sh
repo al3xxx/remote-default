@@ -30,6 +30,7 @@ log() {
     mkdir -p "$(dirname "$LOG_F")" 2>/dev/null
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $l - $message" >> "$LOG_F" 2>/dev/null
     [[ "$LVL" == "DEBUG" ]] && echo "$(date '+%Y-%m-%d %H:%M:%S') - $l - $message" >&2
+    return 0
 }
 
 # Err trap
@@ -38,11 +39,14 @@ trap 'err $LINENO' ERR
 
 # Load cfg
 load() {
-    HOST="" KEY="" BROW="xdg-open" LOG_ON=false LVL="INFO" LOG_F=""
+    HOST="" KEY="" BROW="remlib" LOG_ON=false LVL="INFO" LOG_F=""
     if [[ -f "$CFG" ]]; then
-        while IFS='=' read -r k v; do
+        while IFS='=' read -r k v || [[ -n "$k" ]]; do
             [[ "$k" =~ ^#.*$ || -z "$k" ]] && continue
-            v=$(echo "$v" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^["'\'']//' -e 's/["'\'']$//')
+            v="${v#"${v%%[![:space:]]*}"}"
+            v="${v%"${v##*[![:space:]]}"}"
+            v="${v#[\"']}"
+            v="${v%[\"']}"
             case "$k" in
                 remote_host) HOST="$v" ;;
                 ssh_key) KEY="$v" ;;
@@ -54,11 +58,12 @@ load() {
         done < "$CFG"
     fi
     [[ "$LOG_ON" == "true" && -z "$LOG_F" ]] && LOG_F="$HOME/.local/share/remote-default/remote-default.log"
+    return 0
 }
 
 # Save cfg
 save() {
-    local h="$1" k="${2:-}" b="${3:-xdg-open}" o="${4:-false}" l="${5:-INFO}" f="${6:-}"
+    local h="$1" k="${2:-}" b="${3:-remlib}" o="${4:-false}" l="${5:-INFO}" f="${6:-}"
     mkdir -p "$(dirname "$CFG")"
     cat > "$CFG" <<EOF
 remote_host=$h
@@ -129,6 +134,7 @@ EOF
     if command -v xdg-settings &>/dev/null; then
         xdg-settings set default-web-browser remote-default.desktop &>/dev/null && echo "Success"
     fi
+    return 0
 }
 
 # Uninstall
@@ -136,6 +142,7 @@ uninst() {
     local df="$HOME/.local/share/applications/remote-default.desktop"
     [[ -f "$df" ]] && rm -f "$df" && echo "Removed: $df"
     command -v update-desktop-database &>/dev/null && update-desktop-database "$(dirname "$df")" &>/dev/null
+    return 0
 }
 
 # Log show
@@ -144,6 +151,7 @@ show() {
     local f="${LOG_F:-$HOME/.local/share/remote-default/remote-default.log}"
     echo -e "Log: $f\nOn: $LOG_ON\nLvl: $LVL\n"
     [[ -f "$f" ]] && tail -n 20 "$f"
+    return 0
 }
 
 # Help
@@ -168,7 +176,7 @@ EOF
 
 # Main
 main() {
-    local url="" c=0 i=0 u=0 s=0 h="" k="" b="xdg-open" on="" l="" f=""
+    local url="" c=0 i=0 u=0 s=0 h="" k="" b="remlib" on="" l="" f=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -c|--configure) c=1; shift ;;
