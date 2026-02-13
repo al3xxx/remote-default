@@ -270,7 +270,7 @@ def main():
                 for ln in file.readlines()[-20:]: print(ln.rstrip())
         return 0
     
-    if a.configure or a.host or a.enable_logging or a.disable_logging or a.lvl or a.log_f:
+    if a.configure or a.host or a.key or a.browser or a.enable_logging or a.disable_logging or a.lvl or a.log_f:
         host = a.host or b.cfg.get('host')
         key = a.key or b.cfg.get('key')
         brow = a.browser or b.cfg.get('browser')

@@ -23,9 +23,10 @@ SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=5 -o Serv
 
 # Log msg
 log() {
-    local l="$1" message="${*:2}"
+    local l="$1" message="${*:2}" cl ml
     [[ "$LOG_ON" != "true" || -z "$LOG_F" ]] && return 0
-    local cl="${LVLS[$LVL]:-1}" ml="${LVLS[$l]:-1}"
+    cl="${LVLS[$LVL]:-1}"
+    ml="${LVLS[$l]:-1}"
     [[ $ml -lt $cl ]] && return 0
     mkdir -p "$(dirname "$LOG_F")" 2>/dev/null
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $l - $message" >> "$LOG_F" 2>/dev/null
@@ -39,6 +40,7 @@ trap 'err $LINENO' ERR
 
 # Load cfg
 load() {
+    local line k v
     HOST="" KEY="" BROW="remlib" LOG_ON=false LVL="INFO" LOG_F=""
     if [[ -f "$CFG" ]]; then
         while IFS= read -r line || [[ -n "$line" ]]; do
@@ -188,8 +190,8 @@ main() {
             -u|--uninstall) u=1; shift ;;
             -s|--show-log) s=1; shift ;;
             -r|--remote-host) h="$2"; c=1; shift 2 ;;
-            -k|--ssh-key) k="$2"; shift 2 ;;
-            -b|--remote-browser) b="$2"; shift 2 ;;
+            -k|--ssh-key) k="$2"; c=1; shift 2 ;;
+            -b|--remote-browser) b="$2"; c=1; shift 2 ;;
             -E|--enable-logging) on="true"; c=1; shift ;;
             -D|--disable-logging) on="false"; c=1; shift ;;
             -l|--log-level) l="${2^^}"; c=1; shift 2 ;;
