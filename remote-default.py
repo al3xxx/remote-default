@@ -32,7 +32,8 @@ class RemoteDefaultBrowser:
         'remote_browser': 'browser',
         'logging_enabled': 'log_on',
         'log_level': 'lvl',
-        'log_file': 'log_f'
+        'log_file': 'log_f',
+        'tunnel_timeout': 'timeout'
     }
     
     def __init__(self, cfg_f=None):
@@ -92,7 +93,8 @@ class RemoteDefaultBrowser:
             'browser': 'remlib',
             'log_on': False,
             'lvl': 'INFO',
-            'log_f': ''
+            'log_f': '',
+            'timeout': '300'
         }
         
         if not self.cfg_f.exists():
@@ -119,7 +121,7 @@ class RemoteDefaultBrowser:
         return c
     
     def save_cfg(self, host, key=None, browser='remlib',
-                 log_on=False, lvl='INFO', log_f=''):
+                 log_on=False, lvl='INFO', log_f='', timeout='300'):
         """Save configuration to file."""
         try:
             self.cfg_f.parent.mkdir(parents=True, exist_ok=True)
@@ -128,6 +130,7 @@ class RemoteDefaultBrowser:
                 f.write(f"remote_host={host}\n")
                 if key: f.write(f"ssh_key={key}\n")
                 f.write(f"remote_browser={browser}\n")
+                f.write(f"tunnel_timeout={timeout}\n")
                 f.write("\n# Log Config\n")
                 f.write(f"logging_enabled={'true' if log_on else 'false'}\n")
                 f.write(f"log_level={lvl.upper()}\n")
@@ -175,9 +178,20 @@ class RemoteDefaultBrowser:
         
         # Start tunnel if port found
         if port:
-            t_cmd = cmd + ['-TnNR', f'{port}:localhost:{port}', self.cfg['host']]
+            # Use remote sleep for portable termination across all OpenSSH versions.
+            # Use ExitOnForwardFailure to prevent hanging if the port is already in use.
+            t_cmd = cmd + [
+                '-o', 'ExitOnForwardFailure=yes',
+                '-TnR', f'{port}:localhost:{port}', 
+                self.cfg['host'],
+                f'sleep {self.cfg.get("timeout", "300")}'
+            ]
             self.log.debug(f"Tunnel cmd: {shlex.join(t_cmd)}")
-            subprocess.Popen(t_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+            # Redirect stderr to the log file to capture SSH errors.
+            log_f_path = self.cfg.get('log_f')
+            log_dest = open(log_f_path, 'a') if self.cfg.get('log_on') and log_f_path else subprocess.DEVNULL
+            subprocess.Popen(t_cmd, stdout=subprocess.DEVNULL, stderr=log_dest)
         
         cmd.append(self.cfg['host'])
         
@@ -267,7 +281,8 @@ def main():
     p.add_argument('-u', '--uninstall', action='store_true', help='Uninstall and remove desktop integration')
     p.add_argument('-r', '--remote-host', dest='host', help='Set remote host (e.g., user@hostname)')
     p.add_argument('-k', '--ssh-key', dest='key', help='Set path to SSH private key')
-    p.add_argument('-b', '--remote-browser', dest='browser', default='xdg-open', help='Set browser command on remote host')
+    p.add_argument('-b', '--remote-browser', dest='browser', help='Set browser command on remote host')
+    p.add_argument('-t', '--tunnel-timeout', dest='timeout', help='Set background tunnel inactivity timeout in seconds')
     
     # Log args
     p.add_argument('-E', '--enable-logging', action='store_true', help='Enable persistent logging')
@@ -287,10 +302,11 @@ def main():
                 for ln in file.readlines()[-20:]: print(ln.rstrip())
         return 0
     
-    if a.configure or a.host or a.key or a.browser or a.enable_logging or a.disable_logging or a.lvl or a.log_f:
+    if a.configure or a.host or a.key or a.browser or a.timeout or a.lvl or a.log_f or a.enable_logging or a.disable_logging:
         host = a.host or b.cfg.get('host')
         key = a.key or b.cfg.get('key')
-        brow = a.browser or b.cfg.get('browser')
+        brow = a.browser or b.cfg.get('browser') or 'remlib'
+        tout = a.timeout or b.cfg.get('timeout', '300')
         on = a.enable_logging if a.enable_logging else (False if a.disable_logging else b.cfg.get('log_on', False))
         lvl = a.lvl or b.cfg.get('lvl', 'INFO')
         f = a.log_f or b.cfg.get('log_f', '')
@@ -298,7 +314,7 @@ def main():
         if not host and a.configure:
             host = input("Remote host (user@host): ").strip()
         
-        if host: return b.save_cfg(host, key, brow, on, lvl, f)
+        if host: return b.save_cfg(host, key, brow, on, lvl, f, tout)
         print("Err: Host req", file=sys.stderr)
         return 1
     

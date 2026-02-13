@@ -14,6 +14,7 @@ CFG="${XDG_CONFIG_HOME:-$HOME/.config}/remote-default/config"
 LOG_F=""
 LOG_ON=false
 LVL="INFO"
+TIMEOUT="300"
 
 # Lvl map
 declare -A LVLS=( ["DEBUG"]=0 ["INFO"]=1 ["WARNING"]=2 ["ERROR"]=3 ["CRITICAL"]=4 )
@@ -34,6 +35,15 @@ log() {
     return 0
 }
 
+# URL decode helper
+url_decode() {
+    local string="${1//+/ }"
+    # Use a format string to prevent interpretation of the rest of the URL
+    local decoded
+    printf -v decoded '%b' "${string//%/\\x}"
+    printf '%s' "$decoded"
+}
+
 # Err trap
 err() { log "ERROR" "Failed at $1 with $?"; }
 trap 'err $LINENO' ERR
@@ -41,7 +51,7 @@ trap 'err $LINENO' ERR
 # Load cfg
 load() {
     local line k v
-    HOST="" KEY="" BROW="remlib" LOG_ON=false LVL="INFO" LOG_F=""
+    HOST="" KEY="" BROW="remlib" LOG_ON=false LVL="INFO" LOG_F="" TIMEOUT="300"
     if [[ -f "$CFG" ]]; then
         while IFS= read -r line || [[ -n "$line" ]]; do
             [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
@@ -57,6 +67,7 @@ load() {
                 remote_host) HOST="$v" ;;
                 ssh_key) KEY="$v" ;;
                 remote_browser) BROW="$v" ;;
+                tunnel_timeout) TIMEOUT="$v" ;;
                 logging_enabled) [[ "$v" =~ ^(true|yes|1|on)$ ]] && LOG_ON=true || LOG_ON=false ;;
                 log_level) LVL="${v^^}" ;;
                 log_file) LOG_F="$v" ;;
@@ -69,12 +80,13 @@ load() {
 
 # Save cfg
 save() {
-    local h="$1" k="${2:-}" b="${3:-remlib}" o="${4:-false}" l="${5:-INFO}" f="${6:-}"
+    local h="$1" k="${2:-}" b="${3:-remlib}" o="${4:-false}" l="${5:-INFO}" f="${6:-}" t="${7:-300}"
     mkdir -p "$(dirname "$CFG")"
     cat > "$CFG" <<EOF
 remote_host=$h
 ssh_key=$k
 remote_browser=$b
+tunnel_timeout=$t
 logging_enabled=$o
 log_level=${l^^}
 log_file=$f
@@ -101,15 +113,21 @@ open_url() {
         opts+=(-i "$KEY")
     fi
     
-    # Check for callback port
+    # Check for callback port (case-insensitive)
     local port=""
-    if [[ "$url" == *"callback"* ]]; then
+    if [[ "${url,,}" == *"callback"* ]]; then
         local d_url
-        d_url=$(python3 -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.argv[1]))" "$url" 2>/dev/null || echo "$url")
+        d_url=$(url_decode "$url")
         if [[ "$d_url" =~ (localhost|127\.0\.0\.1):([0-9]+) ]]; then
             port="${BASH_REMATCH[2]}"
             log "INFO" "Callback port detected: $port"
-            ssh "${opts[@]}" -TnNR "$port:localhost:$port" "$HOST" &
+            # Use remote sleep for portable termination.
+            # Use ExitOnForwardFailure to exit immediately if port is bound.
+            # Redirect output to prevent terminal corruption.
+            log "DEBUG" "Tunnel cmd: ssh ${opts[*]} -o ExitOnForwardFailure=yes -TnR $port:localhost:$port $HOST \"sleep $TIMEOUT\""
+            ssh "${opts[@]}" \
+                -o ExitOnForwardFailure=yes \
+                -TnR "$port:localhost:$port" "$HOST" "sleep $TIMEOUT" >/dev/null 2>&1 &
         fi
     fi
     
@@ -185,6 +203,7 @@ Opts:
   -r, --remote-host   Set remote host (e.g., user@hostname)
   -k, --ssh-key       Set path to SSH private key
   -b, --remote-browser Set browser command on remote host (default: remlib)
+  -t, --tunnel-timeout Set background tunnel inactivity timeout in seconds (default: 300)
   -E, --enable-logging Enable persistent logging
   -D, --disable-logging Disable persistent logging
   -l, --log-level     Set logging verbosity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -204,6 +223,7 @@ main() {
             -r|--remote-host) h="$2"; c=1; shift 2 ;;
             -k|--ssh-key) k="$2"; c=1; shift 2 ;;
             -b|--remote-browser) b="$2"; c=1; shift 2 ;;
+            -t|--tunnel-timeout) t="$2"; c=1; shift 2 ;;
             -E|--enable-logging) on="true"; c=1; shift ;;
             -D|--disable-logging) on="false"; c=1; shift ;;
             -l|--log-level) l="${2^^}"; c=1; shift 2 ;;
@@ -218,11 +238,13 @@ main() {
     if [[ $c -eq 1 ]]; then
         [[ -z "$h" ]] && h="$HOST"
         [[ -z "$k" ]] && k="$KEY"
+        [[ "$b" == "remlib" ]] && b="$BROW"
+        [[ -z "$t" ]] && t="$TIMEOUT"
         [[ -z "$on" ]] && on="$LOG_ON"
         [[ -z "$l" ]] && l="$LVL"
         [[ -z "$f" ]] && f="$LOG_F"
         [[ -z "$h" ]] && { read -rp "Host: " h; }
-        [[ -n "$h" ]] && save "$h" "$k" "$b" "$on" "$l" "$f" || exit 1
+        [[ -n "$h" ]] && save "$h" "$k" "$b" "$on" "$l" "$f" "$t" || exit 1
     elif [[ $i -eq 1 ]]; then inst
     elif [[ $u -eq 1 ]]; then uninst
     elif [[ -n "$url" ]]; then open_url "$url"
