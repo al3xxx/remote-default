@@ -116,7 +116,7 @@ class RemoteDefaultBrowser:
         
         return c
     
-    def save_cfg(self, host, key=None, browser='xdg-open',
+    def save_cfg(self, host, key=None, browser='remlib',
                  log_on=False, lvl='INFO', log_f=''):
         """Save configuration to file."""
         try:

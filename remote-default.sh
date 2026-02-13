@@ -41,8 +41,12 @@ trap 'err $LINENO' ERR
 load() {
     HOST="" KEY="" BROW="remlib" LOG_ON=false LVL="INFO" LOG_F=""
     if [[ -f "$CFG" ]]; then
-        while IFS='=' read -r k v || [[ -n "$k" ]]; do
-            [[ "$k" =~ ^#.*$ || -z "$k" ]] && continue
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+            k="${line%%=*}"
+            k="${k#"${k%%[![:space:]]*}"}"
+            k="${k%"${k##*[![:space:]]}"}"
+            v="${line#*=}"
             v="${v#"${v%%[![:space:]]*}"}"
             v="${v%"${v##*[![:space:]]}"}"
             v="${v#[\"']}"
