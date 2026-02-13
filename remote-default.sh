@@ -101,6 +101,18 @@ open_url() {
         opts+=(-i "$KEY")
     fi
     
+    # Check for callback port
+    local port=""
+    if [[ "$url" == *"callback"* ]]; then
+        local d_url
+        d_url=$(python3 -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.argv[1]))" "$url" 2>/dev/null || echo "$url")
+        if [[ "$d_url" =~ (localhost|127\.0\.0\.1):([0-9]+) ]]; then
+            port="${BASH_REMATCH[2]}"
+            log "INFO" "Callback port detected: $port"
+            ssh "${opts[@]}" -TnNR "$port:localhost:$port" "$HOST" &
+        fi
+    fi
+    
     local qurl
     qurl=$(printf '%q' "$url")
     log "DEBUG" "URL to remote: $qurl"

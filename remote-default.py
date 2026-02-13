@@ -11,6 +11,8 @@ import shlex
 import os
 import argparse
 import logging
+import re
+import urllib.parse
 from pathlib import Path
 from datetime import datetime
 
@@ -152,6 +154,15 @@ class RemoteDefaultBrowser:
             self.log.error("Empty URL provided")
             return 1
         
+        # Check for callback port
+        port = None
+        if 'callback' in url.lower():
+            d_url = urllib.parse.unquote(url)
+            m = re.search(r'(?:localhost|127\.0\.0\.1):([0-9]+)', d_url)
+            if m:
+                port = m.group(1)
+                self.log.info(f"Callback port detected: {port}")
+        
         cmd = ['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10',
                '-o', 'ServerAliveInterval=5', '-o', 'ServerAliveCountMax=3']
         
@@ -161,6 +172,12 @@ class RemoteDefaultBrowser:
                 print(f"Err: Key not found: {kp}", file=sys.stderr)
                 return 1
             cmd.extend(['-i', str(kp)])
+        
+        # Start tunnel if port found
+        if port:
+            t_cmd = cmd + ['-TnNR', f'{port}:localhost:{port}', self.cfg['host']]
+            self.log.debug(f"Tunnel cmd: {shlex.join(t_cmd)}")
+            subprocess.Popen(t_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         
         cmd.append(self.cfg['host'])
         
