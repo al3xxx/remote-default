@@ -1,13 +1,13 @@
 # Remote Default Browser
 
-Remote Default Browser is a utility for headless Linux servers that forwards URL "open" requests to a remote host with a GUI via SSH. It allows CLI tools (like `gcloud auth`, `npm docs`, etc.) running on a server to automatically open their web-based flows or documentation on your local desktop browser.
+Remote Default Browser is a utility for headless Linux servers that is trying to mimic **default browser** but instead forwards URL "open" requests to a remote host with a running **real GUI browser**  over SSH connection. It allows CLI tools (like `gcloud auth`, `npm docs`, etc.) running on a server to automatically open their web-based flows or documentation on your local desktop browser. Tested with Linux desktop with running X11 DE (YMMV)
 
 ## Key Features
 
 - **Dual Implementation**: Choice of Python or Bash versions.
 - **SSH Integration**: Uses secure SSH tunnels for communication.
-- **Desktop Integration**: Registers as a system-wide default browser.
-- **Flexible**: Compatible with any browser on the remote host.
+- **Desktop Integration**: Registers as a system-wide default browser on headless server (at least npm checks for BROWSER env variable and uses it).
+- **Flexible**: Compatible with the brosers that support '--new-tab <url>' command.
 - **Security Focused**: Supports SSH key restrictions and secure defaults.
 
 ## Security
@@ -48,9 +48,10 @@ remote-default --configure
 
 ## How it Works
 
-1. **Application** calls `xdg-open <URL>`.
+1. **Application** calls `xdg-open <URL>` or in case of some AI CLI terminal tools check for BROWSER env variable and if it exists execute 
+```$BROWSER <url>```
 2. **remote-default** handles the request.
-3. **SSH** connects to the remote host.
+3. **SSH** connects to the remote host and if <url> contains callback url that points to localhost:port same SSH session creates remote tunnel that connects remote localhost:port to the headless server localhost:port.
 4. **remlib** (or your chosen browser) opens the URL on the remote GUI.
 
 ## Documentation
@@ -58,3 +59,9 @@ remote-default --configure
 - [LOGGING.md](LOGGING.md) - Detailed logging configuration.
 - [ERROR_HANDLING.md](ERROR_HANDLING.md) - Troubleshooting guide.
 - [SUMMARY.md](SUMMARY.md) - Project overview and architecture.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+**Disclaimer**: The authors and contributors of this project are not responsible for any damages incurred by its use. Use it at your own risk.

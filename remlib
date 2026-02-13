@@ -39,7 +39,7 @@ find_browser_env() {
 # Try each browser in the list
 for browser in "${BROWSERS[@]}"; do
     if find_browser_env "$browser"; then
-        echo "Found running $browser (PID: $(pgrep -n $browser)). Opening URL..."
+    # echo "Found running $browser (PID: $(pgrep -n $browser)). Opening URL..."
         if "$browser" --new-tab "$URL" 2>/dev/null; then
             exit 0
         fi
