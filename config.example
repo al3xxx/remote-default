@@ -1,0 +1,30 @@
+# Remote Default Browser Configuration
+# Location: ~/.config/remote-default/config
+
+# Remote host in format: user@hostname or user@ip
+# Example: john@desktop.local or admin@192.168.1.100
+remote_host=user@example.com
+
+# Path to SSH private key (optional if using ssh-agent or default keys)
+# Example: /home/user/.ssh/id_rsa or /home/user/.ssh/id_ed25519
+ssh_key=/home/user/.ssh/id_rsa
+
+# Browser command to execute on remote host
+# Options: xdg-open (default), firefox, google-chrome, chromium-browser
+remote_browser=xdg-open
+
+# Logging Configuration
+# Enable or disable logging (true/false, yes/no, 1/0, on/off)
+logging_enabled=false
+
+# Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+# DEBUG: Most verbose, includes all messages
+# INFO: General informational messages
+# WARNING: Warning messages
+# ERROR: Error messages
+# CRITICAL: Critical errors only
+log_level=INFO
+
+# Log file location (optional, default: ~/.local/share/remote-default/remote-default.log)
+# Leave empty to use default location
+log_file=
