@@ -14,40 +14,40 @@ URL="$1"
 
 # Validate URL schema
 if [[ ! "$URL" =~ ^https?:// ]]; then
-    echo "Error: Invalid URL schema. Only http/https supported." >&2
-    exit 1
+  echo "Error: Invalid URL schema. Only http/https supported." >&2
+  exit 1
 fi
 
 find_browser_env() {
-    local browser="$1"
-    local pids
-    pids=$(pgrep -x "$browser" 2>/dev/null) || return 1
-    
-    for pid in $pids; do
-        # Try to extract DISPLAY and XAUTHORITY from process environment
-        local env_vars
-        if [[ -r "/proc/$pid/environ" ]]; then
-            env_vars=$(tr '\0' '\n' < "/proc/$pid/environ" | grep -E '^(DISPLAY|XAUTHORITY)=')
-            
-            if [[ -n "$env_vars" ]]; then
-                # Read line-by-line to ensure each variable is exported correctly
-                while read -r var; do export "$var"; done <<< "$env_vars"
-                if "$browser" --version &>/dev/null; then
-                    return 0
-                fi
-            fi
+  local browser="$1"
+  local pids
+  pids=$(pgrep -x "$browser" 2>/dev/null) || return 1
+  
+  for pid in $pids; do
+    # Try to extract DISPLAY and XAUTHORITY from process environment
+    local env_vars
+    if [[ -r "/proc/$pid/environ" ]]; then
+      env_vars=$(tr '\0' '\n' < "/proc/$pid/environ" | grep -E '^(DISPLAY|XAUTHORITY)=')
+      
+      if [[ -n "$env_vars" ]]; then
+        # Read line-by-line to ensure each variable is exported correctly
+        while read -r var; do export "$var"; done <<< "$env_vars"
+        if "$browser" --version &>/dev/null; then
+          return 0
         fi
-    done
-    return 1
+      fi
+    fi
+  done
+  return 1
 }
 
 # Try each browser in the list
 for browser in "${BROWSERS[@]}"; do
-    if find_browser_env "$browser"; then
-        if "$browser" --new-tab "$URL" 2>/dev/null; then
-            exit 0
-        fi
+  if find_browser_env "$browser"; then
+    if "$browser" --new-tab "$URL" 2>/dev/null; then
+      exit 0
     fi
+  fi
 done
 
 # No running browser found or targeting failed

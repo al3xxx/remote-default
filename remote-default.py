@@ -9,6 +9,7 @@ import sys
 import subprocess
 import shlex
 import os
+import shutil
 import argparse
 import logging
 import re
@@ -57,13 +58,7 @@ class RemoteDefaultBrowser:
         lvl = self.LVLS.get(lvl_s, logging.INFO)
         l.setLevel(lvl)
         
-        f = self.cfg.get('log_f', '')
-        if f:
-            p = Path(f).expanduser()
-        else:
-            d = Path.home() / '.local' / 'share' / 'remote-default'
-            d.mkdir(parents=True, exist_ok=True)
-            p = d / 'remote-default.log'
+        p = self._effective_log_path()
         
         try:
             p.parent.mkdir(parents=True, exist_ok=True)
@@ -84,6 +79,12 @@ class RemoteDefaultBrowser:
             print(f"Warn: Log setup failed: {e}", file=sys.stderr)
         
         return l
+
+    def _effective_log_path(self):
+        f = self.cfg.get('log_f', '')
+        if f:
+            return Path(f).expanduser()
+        return Path.home() / '.local' / 'share' / 'remote-default' / 'remote-default.log'
     
     def load_cfg(self):
         """Load configuration from file."""
@@ -196,9 +197,16 @@ class RemoteDefaultBrowser:
             self.log.debug(f"Tunnel cmd: {shlex.join(t_cmd)}")
             
             # Redirect stderr to the log file to capture SSH errors.
-            log_f_path = self.cfg.get('log_f')
-            log_dest = open(log_f_path, 'a') if self.cfg.get('log_on') and log_f_path else subprocess.DEVNULL
+            log_dest = subprocess.DEVNULL
+            log_file = None
+            if self.cfg.get('log_on'):
+                log_path = self._effective_log_path()
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+                log_file = open(log_path, 'a')
+                log_dest = log_file
             subprocess.Popen(t_cmd, stdout=subprocess.DEVNULL, stderr=log_dest)
+            if log_file:
+                log_file.close()
         
         cmd.append(self.cfg['host'])
         
@@ -261,11 +269,21 @@ MimeType=x-scheme-handler/http;x-scheme-handler/https;text/html;
             print(f"Created: {df}")
             
             # Update DB
-            subprocess.run(['update-desktop-database', str(dd)], capture_output=True)
+            if shutil.which('update-desktop-database'):
+                subprocess.run(['update-desktop-database', str(dd)], capture_output=True)
             
             # Set default
-            subprocess.run(['xdg-settings', 'set', 'default-web-browser', 'remote-default.desktop'], check=True)
-            print("Set default browser success")
+            if shutil.which('xdg-settings'):
+                r = subprocess.run(
+                    ['xdg-settings', 'set', 'default-web-browser', 'remote-default.desktop'],
+                    capture_output=True
+                )
+                if r.returncode == 0:
+                    print("Set default browser success")
+                else:
+                    print("Warn: Failed to set default browser", file=sys.stderr)
+            else:
+                print("Warn: xdg-settings not found", file=sys.stderr)
             return 0
             
         except Exception as e:
@@ -280,7 +298,8 @@ MimeType=x-scheme-handler/http;x-scheme-handler/https;text/html;
         if df.exists():
             df.unlink()
             print(f"Removed: {df}")
-            subprocess.run(['update-desktop-database', str(df.parent)], capture_output=True)
+            if shutil.which('update-desktop-database'):
+                subprocess.run(['update-desktop-database', str(df.parent)], capture_output=True)
         return 0
 
 
@@ -306,7 +325,7 @@ def main():
     b = RemoteDefaultBrowser()
     
     if a.show_log:
-        f = Path(b.cfg.get('log_f') or (Path.home() / '.local/share/remote-default/remote-default.log'))
+        f = b._effective_log_path()
         print(f"Log: {f}\nOn: {b.cfg.get('log_on')}\nLvl: {b.cfg.get('lvl')}\n")
         if f.exists():
             with open(f, 'r') as file:
