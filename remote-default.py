@@ -157,6 +157,12 @@ class RemoteDefaultBrowser:
             self.log.error("Empty URL provided")
             return 1
         
+        # Validate timeout
+        timeout = self.cfg.get('timeout', '300')
+        if not timeout.isdigit():
+            self.log.warning(f"Invalid timeout '{timeout}', falling back to 300")
+            timeout = '300'
+        
         # Check for callback port
         port = None
         if 'callback' in url.lower():
@@ -166,6 +172,7 @@ class RemoteDefaultBrowser:
                 port = m.group(1)
                 self.log.info(f"Callback port detected: {port}")
         
+        # Base SSH command
         cmd = ['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10',
                '-o', 'ServerAliveInterval=5', '-o', 'ServerAliveCountMax=3']
         
@@ -184,7 +191,7 @@ class RemoteDefaultBrowser:
                 '-o', 'ExitOnForwardFailure=yes',
                 '-TnR', f'{port}:localhost:{port}', 
                 self.cfg['host'],
-                f'sleep {self.cfg.get("timeout", "300")}'
+                f'sleep {timeout}'
             ]
             self.log.debug(f"Tunnel cmd: {shlex.join(t_cmd)}")
             
@@ -198,7 +205,11 @@ class RemoteDefaultBrowser:
         qurl = shlex.quote(url)
         self.log.debug(f"URL passed to remote: {qurl}")
         
-        rcmd = f"{self.cfg['browser']} {qurl}"
+        # Safely handle browser command - use shlex.split to support arguments
+        # and shlex.join to recombine with the URL safely.
+        browser_cfg = self.cfg.get('browser', 'remlib')
+        browser_cmd = shlex.split(browser_cfg)
+        rcmd = shlex.join(browser_cmd + [url])
         cmd.append(rcmd)
         
         self.log.debug(f"SSH cmd: {shlex.join(cmd)}")

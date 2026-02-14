@@ -121,20 +121,25 @@ open_url() {
         if [[ "$d_url" =~ (localhost|127\.0\.0\.1):([0-9]+) ]]; then
             port="${BASH_REMATCH[2]}"
             log "INFO" "Callback port detected: $port"
+            
+            # Validate timeout
+            local tout="$TIMEOUT"
+            [[ ! "$tout" =~ ^[0-9]+$ ]] && tout="300"
+            
             # Use remote sleep for portable termination.
             # Use ExitOnForwardFailure to exit immediately if port is bound.
             # Redirect output to prevent terminal corruption.
-            log "DEBUG" "Tunnel cmd: ssh ${opts[*]} -o ExitOnForwardFailure=yes -TnR $port:localhost:$port $HOST \"sleep $TIMEOUT\""
+            log "DEBUG" "Tunnel cmd: ssh ${opts[*]} -o ExitOnForwardFailure=yes -TnR $port:localhost:$port $HOST \"sleep $tout\""
             ssh "${opts[@]}" \
                 -o ExitOnForwardFailure=yes \
-                -TnR "$port:localhost:$port" "$HOST" "sleep $TIMEOUT" >/dev/null 2>&1 &
+                -TnR "$port:localhost:$port" "$HOST" "sleep $tout" >/dev/null 2>&1 &
         fi
     fi
     
     local qurl
     qurl=$(printf '%q' "$url")
     log "DEBUG" "URL to remote: $qurl"
-    local rcmd="$BROW $qurl"
+    local rcmd="${BROW} ${qurl}"
     
     log "INFO" "Connecting to $HOST..."
     local out
